@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Goobstation.Maths.FixedPoint;
 using Robust.Shared.GameStates;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
@@ -54,4 +55,24 @@ public sealed partial class WalkerZombieComponent : Component
     /// </summary>
     [DataField]
     public bool PermanentlyDead;
+
+    /// <summary>
+    ///     Reagent that cures a downed walker when enough of it is in the corpse's
+    ///     injectable solution. Checked directly by the reanimation system because
+    ///     corpse metabolism is unreliable.
+    /// </summary>
+    [DataField]
+    public string CureReagent = "Ambuzol";
+
+    [DataField]
+    public FixedPoint2 CureReagentAmount = 10;
+
+    /// <summary>
+    ///     Stronger variant that also inoculates the cured victim.
+    /// </summary>
+    [DataField]
+    public string InoculateReagent = "AmbuzolPlus";
+
+    [DataField]
+    public FixedPoint2 InoculateReagentAmount = 5;
 }

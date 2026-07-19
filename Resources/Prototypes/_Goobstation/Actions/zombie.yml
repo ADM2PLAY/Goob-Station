@@ -11,5 +11,8 @@
     icon:
       sprite: Interface/Actions/jump.rsi
       state: icon
-  - type: InstantAction
+  - type: TargetAction
+    checkCanAccess: false
+    range: 8
+  - type: WorldTargetAction
     event: !type:ZombieLeapActionEvent

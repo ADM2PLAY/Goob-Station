@@ -89,11 +89,11 @@ public sealed partial class VolatileZombieComponent : Component
     ///     How far a clawed victim gets shoved, in tiles.
     /// </summary>
     [DataField]
-    public float KnockbackDistance = 1.5f;
+    public float KnockbackDistance = 0.6f;
 
     /// <summary>
     ///     Throw speed of the knockback shove.
     /// </summary>
     [DataField]
-    public float KnockbackSpeed = 6f;
+    public float KnockbackSpeed = 3.5f;
 }

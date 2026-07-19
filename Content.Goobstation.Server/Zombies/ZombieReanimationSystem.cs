@@ -8,6 +8,7 @@ using Content.Shared.Body.Components;
 using Content.Shared.Body.Part;
 using Content.Shared.Body.Systems;
 using Content.Shared.Damage;
+using Content.Shared.Chemistry.EntitySystems;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
@@ -35,6 +36,9 @@ public sealed class ZombieReanimationSystem : EntitySystem
     [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedBodySystem _body = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
+    [Dependency] private readonly SharedSolutionContainerSystem _solutionContainer = default!;
+
+    private readonly List<(EntityUid Uid, bool Inoculate)> _pendingCures = new();
 
     private static readonly SoundSpecifier RiseSound = new SoundPathSpecifier("/Audio/Voice/Zombie/zombie-3.ogg");
 
@@ -61,13 +65,21 @@ public sealed class ZombieReanimationSystem : EntitySystem
         var query = EntityQueryEnumerator<WalkerZombieComponent, ZombieComponent, MobStateComponent, DamageableComponent>();
         while (query.MoveNext(out var uid, out var walker, out _, out var mobState, out var damageable))
         {
-            if (walker.ReanimateAt is not { } reanimateAt || curTime < reanimateAt)
+            if (walker.ReanimateAt is not { } reanimateAt || !_mobState.IsDead(uid, mobState))
+                continue;
+
+            // Curing the polymorph deletes this entity, so defer it out of the query.
+            if (CheckCureWhileDown(uid, walker, out var inoculate))
+            {
+                walker.ReanimateAt = null;
+                _pendingCures.Add((uid, inoculate));
+                continue;
+            }
+
+            if (curTime < reanimateAt)
                 continue;
 
             walker.ReanimateAt = null;
-
-            if (!_mobState.IsDead(uid, mobState))
-                continue;
 
             if (!CanReanimate(uid, walker, damageable))
             {
@@ -77,6 +89,35 @@ public sealed class ZombieReanimationSystem : EntitySystem
 
             Reanimate(uid, damageable);
         }
+
+        foreach (var (uid, inoculate) in _pendingCures)
+        {
+            var ev = new EntityUnZombifiedEvent(inoculate);
+            RaiseLocalEvent(uid, ref ev);
+        }
+
+        _pendingCures.Clear();
+    }
+
+    /// <summary>
+    ///     Corpse metabolism is too unreliable to carry the capture-and-cure loop,
+    ///     so downed walkers get their injectable solution checked directly: enough
+    ///     cure reagent in the body reverts the zombie before it can rise.
+    /// </summary>
+    private bool CheckCureWhileDown(EntityUid uid, WalkerZombieComponent walker, out bool inoculate)
+    {
+        inoculate = false;
+
+        if (!_solutionContainer.TryGetInjectableSolution(uid, out _, out var solution))
+            return false;
+
+        if (solution.GetTotalPrototypeQuantity(walker.InoculateReagent) >= walker.InoculateReagentAmount)
+        {
+            inoculate = true;
+            return true;
+        }
+
+        return solution.GetTotalPrototypeQuantity(walker.CureReagent) >= walker.CureReagentAmount;
     }
 
     private bool CanReanimate(EntityUid uid, WalkerZombieComponent walker, DamageableComponent damageable)

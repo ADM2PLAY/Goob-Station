@@ -24,6 +24,7 @@ public sealed class ZombieLeapSystem : EntitySystem
     [Dependency] private readonly SharedGravitySystem _gravity = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
     [Dependency] private readonly SharedStunSystem _stun = default!;
+    [Dependency] private readonly SharedTransformSystem _transform = default!;
     [Dependency] private readonly StandingStateSystem _standing = default!;
     [Dependency] private readonly ThrowingSystem _throwing = default!;
 
@@ -51,9 +52,18 @@ public sealed class ZombieLeapSystem : EntitySystem
             return;
         }
 
-        var xform = Transform(ent);
-        var throwing = xform.LocalRotation.ToWorldVec() * ent.Comp.LeapDistance;
-        var direction = xform.Coordinates.Offset(throwing);
+        // Pounce toward the clicked spot, clamped to the max leap distance.
+        var origin = _transform.GetMapCoordinates(ent.Owner);
+        var target = _transform.ToMapCoordinates(args.Target);
+        if (target.MapId != origin.MapId)
+            return;
+
+        var direction = target.Position - origin.Position;
+        if (direction.LengthSquared() < 0.01f)
+            return;
+
+        if (direction.Length() > ent.Comp.LeapDistance)
+            direction = direction.Normalized() * ent.Comp.LeapDistance;
 
         _throwing.TryThrow(ent.Owner, direction, ent.Comp.LeapSpeed);
         _audio.PlayPredicted(ent.Comp.LeapSound, ent, ent);
@@ -89,4 +99,4 @@ public sealed class ZombieLeapSystem : EntitySystem
     }
 }
 
-public sealed partial class ZombieLeapActionEvent : InstantActionEvent;
+public sealed partial class ZombieLeapActionEvent : WorldTargetActionEvent;

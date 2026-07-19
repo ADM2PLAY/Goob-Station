@@ -294,10 +294,9 @@ public sealed partial class ZombieSystem
         //Give them zombie blood
         _bloodstream.ChangeBloodReagents(target, zombiecomp.NewBloodReagents);
 
-        //This is specifically here to combat insuls, because frying zombies on grilles is funny as shit.
-        _inventory.TryUnequip(target, "gloves", true, true);
-        //Should prevent instances of zombies using comms for information they shouldnt be able to have.
-        _inventory.TryUnequip(target, "ears", true, true);
+        // Goob - zed rework: zombies keep everything they were wearing. Dropping gear
+        // on conversion is boring, and radio snooping is handled by ZombieRadioSystem
+        // cancelling radio reception for zombies instead of stripping the headset.
 
         //popup
         _popup.PopupEntity(Loc.GetString("zombie-transform", ("target", target)), target, PopupType.LargeCaution);
