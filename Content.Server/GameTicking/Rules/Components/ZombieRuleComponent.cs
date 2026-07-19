@@ -27,4 +27,9 @@ public sealed partial class ZombieRuleComponent : Component
 
     // goob edit
     public bool StartAnnounced = false;
+
+    /// <summary>
+    ///     Goob - zed rework: how many infected/zombified crew were cured this round.
+    /// </summary>
+    public int CuredCount;
 }

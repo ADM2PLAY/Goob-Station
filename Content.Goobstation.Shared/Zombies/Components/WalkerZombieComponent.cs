@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using Robust.Shared.GameStates;
+using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
 namespace Content.Goobstation.Shared.Zombies.Components;
 
@@ -23,4 +24,34 @@ public sealed partial class WalkerZombieComponent : Component
     /// </summary>
     [DataField]
     public string? DamageModifierSet = "ZombieWalker";
+
+    /// <summary>
+    ///     How long after death the walker reanimates. Rolled between these bounds,
+    ///     giving the crew a window to secure (or permanently destroy) the body.
+    /// </summary>
+    [DataField]
+    public TimeSpan ReanimationDelayMin = TimeSpan.FromSeconds(60);
+
+    [DataField]
+    public TimeSpan ReanimationDelayMax = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    ///     When this dead walker gets back up. Null while alive or permanently dead.
+    /// </summary>
+    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer))]
+    public TimeSpan? ReanimateAt;
+
+    /// <summary>
+    ///     Total Heat damage on the corpse at or above which it is too destroyed
+    ///     to reanimate. Burning bodies is the crew's permanent disposal option.
+    /// </summary>
+    [DataField]
+    public float HeatDestructionThreshold = 150f;
+
+    /// <summary>
+    ///     Set once a reanimation check permanently fails (burned out or headless);
+    ///     the corpse stays down for good.
+    /// </summary>
+    [DataField]
+    public bool PermanentlyDead;
 }

@@ -48,7 +48,32 @@ public sealed class ZombieRuleSystem : GameRuleSystem<ZombieRuleComponent>
         SubscribeLocalEvent<InitialInfectedRoleComponent, GetBriefingEvent>(OnGetBriefing);
         SubscribeLocalEvent<ZombieRoleComponent, GetBriefingEvent>(OnGetBriefing);
         SubscribeLocalEvent<IncurableZombieComponent, ZombifySelfActionEvent>(OnZombifySelf);
+
+        // Goob - zed rework: track and celebrate cures, after ZombieSystem has actually applied the cure.
+        SubscribeLocalEvent<ZombieComponent, EntityUnZombifiedEvent>(OnUnZombified, after: new[] { typeof(ZombieSystem) });
     }
+
+    // Goob - zed rework start
+    private void OnUnZombified(Entity<ZombieComponent> ent, ref EntityUnZombifiedEvent args)
+    {
+        // ZombieSystem's cure handler ran first; if the component is still there, the cure failed.
+        if (HasComp<ZombieComponent>(ent))
+            return;
+
+        var query = QueryActiveRules();
+        while (query.MoveNext(out _, out _, out var zombieRule, out _))
+        {
+            zombieRule.CuredCount++;
+        }
+
+        foreach (var station in _station.GetStations())
+        {
+            _chat.DispatchStationAnnouncement(station,
+                Loc.GetString("zombie-cure-announcement", ("name", MetaData(ent).EntityName)),
+                colorOverride: Color.LimeGreen);
+        }
+    }
+    // Goob - zed rework end
 
     private void OnGetBriefing(Entity<InitialInfectedRoleComponent> role, ref GetBriefingEvent args)
     {
@@ -81,6 +106,10 @@ public sealed class ZombieRuleSystem : GameRuleSystem<ZombieRuleComponent>
             args.AddLine(Loc.GetString("zombie-round-end-amount-high", ("percent", Math.Round((fraction * 100), 2).ToString(CultureInfo.InvariantCulture))));
         else
             args.AddLine(Loc.GetString("zombie-round-end-amount-all"));
+
+        // Goob - zed rework: give the medics their moment.
+        if (component.CuredCount > 0)
+            args.AddLine(Loc.GetString("zombie-round-end-cured-count", ("count", component.CuredCount)));
 
         var antags = _antag.GetAntagIdentifiers(uid);
         args.AddLine(Loc.GetString("zombie-round-end-initial-count", ("initialCount", antags.Count)));
