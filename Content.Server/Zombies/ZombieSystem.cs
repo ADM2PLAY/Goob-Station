@@ -408,10 +408,6 @@ namespace Content.Server.Zombies
             _humanoidAppearance.SetSkinColor(target, zombiecomp.BeforeZombifiedSkinColor, false);
             _bloodstream.ChangeBloodReagents(target, zombiecomp.BeforeZombifiedBloodReagents);
 
-            // Goob - zed rework: let stage cleanup and the gamerule react to a successful cure.
-            var curedEv = new ZombieCuredEvent(target);
-            RaiseLocalEvent(target, ref curedEv, true);
-
             return true;
         }
 
@@ -464,6 +460,13 @@ namespace Content.Server.Zombies
             // we want to make sure this is added to the reverted ent
             if (args.Inoculate)
                 EnsureComp<ZombieImmuneComponent>(currentUid);
+
+            // Goob - zed rework: let stage cleanup and the gamerule react to a successful cure.
+            if (success)
+            {
+                var curedEv = new ZombieCuredEvent(currentUid);
+                RaiseLocalEvent(currentUid, ref curedEv, true);
+            }
         }
 
         /// <summary>
