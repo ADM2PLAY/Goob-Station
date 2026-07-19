@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using Content.Goobstation.Shared.CheckInfection;
+using Content.Goobstation.Shared.Zombies.Components;
 using Content.Server.DoAfter;
 using Content.Server.Popups;
 using Content.Shared.DoAfter;
@@ -9,6 +10,7 @@ using Content.Shared.Interaction;
 using Content.Shared.Popups;
 using Content.Shared.Zombies;
 using Robust.Server.Audio;
+using Robust.Shared.Timing;
 
 namespace Content.Goobstation.Server.CheckInfection;
 
@@ -17,6 +19,7 @@ public sealed partial class CheckInfectionSystem : EntitySystem
     [Dependency] private readonly DoAfterSystem _doafter = default!;
     [Dependency] private readonly PopupSystem _popup = default!;
     [Dependency] private readonly AudioSystem _audio = default!;
+    [Dependency] private readonly IGameTiming _timing = default!; // Goob - zed rework staged infection
 
     public override void Initialize()
     {
@@ -68,6 +71,22 @@ public sealed partial class CheckInfectionSystem : EntitySystem
             _popup.PopupEntity(clearString, uid, PopupType.Medium);
             component.WasInfected = false;
 
+            return;
+        }
+
+        // Goob - zed rework: staged infections report their stage and time to progression.
+        if (TryComp<ZombieInfectionComponent>(target, out var infection))
+        {
+            var seconds = Math.Max(0, (int) (infection.StageEndsAt - _timing.CurTime).TotalSeconds);
+            var stageKey = infection.Stage switch
+            {
+                InfectionStage.Fever => "check-infection-stage-fever",
+                InfectionStage.Terminal => "check-infection-stage-terminal",
+                _ => "check-infection-stage-incubation",
+            };
+
+            _popup.PopupEntity(Loc.GetString(stageKey, ("time", seconds)), uid, PopupType.MediumCaution);
+            component.WasInfected = true;
             return;
         }
 

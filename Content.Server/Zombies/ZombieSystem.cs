@@ -59,6 +59,7 @@ using Content.Server.NPC.HTN;
 using Content.Shared.CombatMode.Pacification;
 using Content.Server.Speech.Components;
 using Content.Goobstation.Shared.Sprinting;
+using Content.Goobstation.Shared.Zombies.Components; // Goob - zed rework staged infection
 using Content.Shared.Prying.Components;
 using Content.Shared.Temperature.Components;
 
@@ -164,6 +165,10 @@ namespace Content.Server.Zombies
             var query = EntityQueryEnumerator<PendingZombieComponent, DamageableComponent, MobStateComponent>();
             while (query.MoveNext(out var uid, out var comp, out var damage, out var mobState))
             {
+                // Goob - zed rework: the staged infection (ZombieInfectionSystem) drives these instead.
+                if (HasComp<ZombieInfectionComponent>(uid))
+                    continue;
+
                 // Process only once per second
                 if (comp.NextTick > curTime)
                     continue;
