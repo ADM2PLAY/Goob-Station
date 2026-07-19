@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Shared.Damage;
 using Robust.Shared.Audio;
 using Robust.Shared.GameStates;
 using Robust.Shared.Prototypes;
@@ -19,7 +20,7 @@ public sealed partial class VolatileZombieComponent : Component
     ///     How long the volatile stage lasts before decaying into a walker.
     /// </summary>
     [DataField]
-    public TimeSpan Duration = TimeSpan.FromMinutes(4);
+    public TimeSpan Duration = TimeSpan.FromSeconds(30);
 
     /// <summary>
     ///     When this zombie decays into a walker. Set on map init.
@@ -69,4 +70,30 @@ public sealed partial class VolatileZombieComponent : Component
 
     [DataField]
     public SoundSpecifier? LeapSound = new SoundPathSpecifier("/Audio/Voice/Zombie/zombie-2.ogg");
+
+    /// <summary>
+    ///     Melee damage while volatile, replacing the base zombie bite. Restored to
+    ///     the zombie's normal bite damage when the stage ends.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier AttackDamage = new()
+    {
+        DamageDict = new()
+        {
+            { "Slash", 18 },
+            { "Structural", 10 }
+        }
+    };
+
+    /// <summary>
+    ///     How far a clawed victim gets shoved, in tiles.
+    /// </summary>
+    [DataField]
+    public float KnockbackDistance = 1.5f;
+
+    /// <summary>
+    ///     Throw speed of the knockback shove.
+    /// </summary>
+    [DataField]
+    public float KnockbackSpeed = 6f;
 }
