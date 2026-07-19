@@ -318,11 +318,8 @@ public sealed partial class ZombieSystem
             ghostRole.MindRoles.Add(MindRoleZombie);
         }
 
-        if (TryComp<HandsComponent>(target, out var handsComp))
-        {
-            _hands.RemoveHands(target);
-            RemComp(target, handsComp);
-        }
+        // Goob - zed rework: zombies keep their hands so they can be cuffed and
+        // restrained for curing. ZombieGraspSystem stops them from holding items.
 
         // Sloth: What the fuck?
         // How long until compregistry lmao.

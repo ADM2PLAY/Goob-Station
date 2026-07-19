@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Goobstation.Maths.FixedPoint;
 using Content.Goobstation.Shared.Zombies.Components;
+using Content.Shared._Shitmed.Damage;
+using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Body.Components;
 using Content.Shared.Body.Part;
 using Content.Shared.Body.Systems;
@@ -9,7 +12,6 @@ using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.Popups;
-using Content.Shared.Rejuvenate;
 using Content.Shared.Zombies;
 using Robust.Shared.Audio;
 using Robust.Shared.Audio.Systems;
@@ -28,6 +30,7 @@ public sealed class ZombieReanimationSystem : EntitySystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly DamageableSystem _damageable = default!;
     [Dependency] private readonly MobStateSystem _mobState = default!;
     [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedBodySystem _body = default!;
@@ -72,7 +75,7 @@ public sealed class ZombieReanimationSystem : EntitySystem
                 continue;
             }
 
-            Reanimate(uid);
+            Reanimate(uid, damageable);
         }
     }
 
@@ -91,11 +94,32 @@ public sealed class ZombieReanimationSystem : EntitySystem
         return true;
     }
 
-    private void Reanimate(EntityUid uid)
+    private void Reanimate(EntityUid uid, DamageableComponent damageable)
     {
-        // Full restore, then stand the walker back up. Deliberately reuses the same
-        // rejuvenate path zombification itself uses so Shitmed wounds reset cleanly.
-        RaiseLocalEvent(uid, new RejuvenateEvent(false, false));
+        // Heal everything except Heat, then stand the walker back up. Keeping Heat
+        // means burn progress sticks across risings, and healing via damage (not
+        // Rejuvenate) means severed limbs stay lost.
+        var heal = new DamageSpecifier();
+        foreach (var (type, value) in damageable.Damage.DamageDict)
+        {
+            if (type == "Heat" || value <= FixedPoint2.Zero)
+                continue;
+
+            heal.DamageDict[type] = -value;
+        }
+
+        if (heal.DamageDict.Count > 0)
+        {
+            _damageable.TryChangeDamage(uid,
+                heal,
+                true,
+                false,
+                damageable,
+                ignoreBlockers: true,
+                targetPart: TargetBodyPart.All,
+                splitDamage: SplitDamageBehavior.SplitEnsureAll);
+        }
+
         _mobState.ChangeMobState(uid, MobState.Alive);
 
         _popup.PopupEntity(Loc.GetString("zombie-reanimation-rise", ("zombie", uid)), uid, PopupType.LargeCaution);
