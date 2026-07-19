@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using Content.Goobstation.Shared.Zombies.Components;
+using Content.Shared.Actions;
 using Content.Shared.Damage;
 using Content.Shared.Movement.Systems;
 
@@ -14,6 +15,7 @@ public abstract class SharedZombieStageSystem : EntitySystem
 {
     [Dependency] private readonly MovementSpeedModifierSystem _movementSpeed = default!;
     [Dependency] private readonly DamageableSystem _damageable = default!;
+    [Dependency] private readonly SharedActionsSystem _actions = default!;
 
     public override void Initialize()
     {
@@ -25,8 +27,8 @@ public abstract class SharedZombieStageSystem : EntitySystem
         SubscribeLocalEvent<VolatileZombieComponent, ComponentStartup>(OnVolatileStartup);
         SubscribeLocalEvent<WalkerZombieComponent, ComponentStartup>(OnWalkerStartup);
 
-        SubscribeLocalEvent<VolatileZombieComponent, ComponentShutdown>(OnStageShutdown);
-        SubscribeLocalEvent<WalkerZombieComponent, ComponentShutdown>(OnStageShutdown);
+        SubscribeLocalEvent<VolatileZombieComponent, ComponentShutdown>(OnVolatileShutdown);
+        SubscribeLocalEvent<WalkerZombieComponent, ComponentShutdown>(OnWalkerShutdown);
     }
 
     private void OnVolatileRefreshSpeed(Entity<VolatileZombieComponent> ent, ref RefreshMovementSpeedModifiersEvent args)
@@ -49,7 +51,18 @@ public abstract class SharedZombieStageSystem : EntitySystem
         ApplyStageModifiers(ent, ent.Comp.DamageModifierSet);
     }
 
-    private void OnStageShutdown(EntityUid uid, Component comp, ComponentShutdown args)
+    private void OnVolatileShutdown(Entity<VolatileZombieComponent> ent, ref ComponentShutdown args)
+    {
+        _actions.RemoveAction(ent.Owner, ent.Comp.LeapActionEntity);
+        RefreshAfterStageRemoved(ent);
+    }
+
+    private void OnWalkerShutdown(Entity<WalkerZombieComponent> ent, ref ComponentShutdown args)
+    {
+        RefreshAfterStageRemoved(ent);
+    }
+
+    private void RefreshAfterStageRemoved(EntityUid uid)
     {
         if (TerminatingOrDeleted(uid))
             return;

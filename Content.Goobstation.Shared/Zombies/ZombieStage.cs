@@ -24,3 +24,11 @@ public enum ZombieStage : byte
 /// </summary>
 [ByRefEvent]
 public readonly record struct ZombieStageChangedEvent(EntityUid Zombie, ZombieStage? OldStage, ZombieStage NewStage);
+
+/// <summary>
+///     Raised (directed and broadcast) after an entity is successfully cured of
+///     zombification. Broadcast so multiple systems can react - this engine allows
+///     only one directed subscriber per component/event pair.
+/// </summary>
+[ByRefEvent]
+public readonly record struct ZombieCuredEvent(EntityUid Target);

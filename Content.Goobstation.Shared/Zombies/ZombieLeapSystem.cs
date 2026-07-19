@@ -20,7 +20,6 @@ namespace Content.Goobstation.Shared.Zombies;
 /// </summary>
 public sealed class ZombieLeapSystem : EntitySystem
 {
-    [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedGravitySystem _gravity = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
@@ -32,23 +31,13 @@ public sealed class ZombieLeapSystem : EntitySystem
     {
         base.Initialize();
 
-        SubscribeLocalEvent<VolatileZombieComponent, MapInitEvent>(OnVolatileMapInit);
-        SubscribeLocalEvent<VolatileZombieComponent, ComponentShutdown>(OnVolatileShutdown);
+        // Action grant/removal lives in the stage systems - this engine allows only
+        // one directed subscriber per component/event pair.
         SubscribeLocalEvent<VolatileZombieComponent, ZombieLeapActionEvent>(OnLeap);
 
         SubscribeLocalEvent<ZombieLeapingComponent, StartCollideEvent>(OnLeapingCollide);
         SubscribeLocalEvent<ZombieLeapingComponent, LandEvent>(OnLeapingLand);
         SubscribeLocalEvent<ZombieLeapingComponent, StopThrowEvent>(OnLeapingStopThrow);
-    }
-
-    private void OnVolatileMapInit(Entity<VolatileZombieComponent> ent, ref MapInitEvent args)
-    {
-        _actions.AddAction(ent, ref ent.Comp.LeapActionEntity, ent.Comp.LeapAction);
-    }
-
-    private void OnVolatileShutdown(Entity<VolatileZombieComponent> ent, ref ComponentShutdown args)
-    {
-        _actions.RemoveAction(ent.Owner, ent.Comp.LeapActionEntity);
     }
 
     private void OnLeap(Entity<VolatileZombieComponent> ent, ref ZombieLeapActionEvent args)

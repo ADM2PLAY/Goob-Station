@@ -59,6 +59,7 @@ using Content.Server.NPC.HTN;
 using Content.Shared.CombatMode.Pacification;
 using Content.Server.Speech.Components;
 using Content.Goobstation.Shared.Sprinting;
+using Content.Goobstation.Shared.Zombies; // Goob - zed rework
 using Content.Goobstation.Shared.Zombies.Components; // Goob - zed rework staged infection
 using Content.Shared.Prying.Components;
 using Content.Shared.Temperature.Components;
@@ -459,6 +460,10 @@ namespace Content.Server.Zombies
 
             // free up the reference clone
             QueueDel(reference);
+
+            // Goob - zed rework: let stage cleanup and the gamerule react to a successful cure.
+            var curedEv = new ZombieCuredEvent(target);
+            RaiseLocalEvent(target, ref curedEv, true);
 
             return true;
         }

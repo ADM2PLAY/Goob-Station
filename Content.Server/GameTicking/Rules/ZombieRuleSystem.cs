@@ -8,6 +8,7 @@ using Content.Server.Roles;
 using Content.Server.RoundEnd;
 using Content.Server.Station.Systems;
 using Content.Server.Zombies;
+using Content.Goobstation.Shared.Zombies; // Goob - zed rework
 using Content.Shared.GameTicking.Components;
 using Content.Shared.Humanoid;
 using Content.Shared.Mind;
@@ -49,17 +50,14 @@ public sealed class ZombieRuleSystem : GameRuleSystem<ZombieRuleComponent>
         SubscribeLocalEvent<ZombieRoleComponent, GetBriefingEvent>(OnGetBriefing);
         SubscribeLocalEvent<IncurableZombieComponent, ZombifySelfActionEvent>(OnZombifySelf);
 
-        // Goob - zed rework: track and celebrate cures, after ZombieSystem has actually applied the cure.
-        SubscribeLocalEvent<ZombieComponent, EntityUnZombifiedEvent>(OnUnZombified, after: new[] { typeof(ZombieSystem) });
+        // Goob - zed rework: track and celebrate cures. Broadcast event because this
+        // engine allows only one directed subscriber per component/event pair.
+        SubscribeLocalEvent<ZombieCuredEvent>(OnCured);
     }
 
     // Goob - zed rework start
-    private void OnUnZombified(Entity<ZombieComponent> ent, ref EntityUnZombifiedEvent args)
+    private void OnCured(ref ZombieCuredEvent args)
     {
-        // ZombieSystem's cure handler ran first; if the component is still there, the cure failed.
-        if (HasComp<ZombieComponent>(ent))
-            return;
-
         var query = QueryActiveRules();
         while (query.MoveNext(out _, out _, out var zombieRule, out _))
         {
@@ -69,7 +67,7 @@ public sealed class ZombieRuleSystem : GameRuleSystem<ZombieRuleComponent>
         foreach (var station in _station.GetStations())
         {
             _chat.DispatchStationAnnouncement(station,
-                Loc.GetString("zombie-cure-announcement", ("name", MetaData(ent).EntityName)),
+                Loc.GetString("zombie-cure-announcement", ("name", MetaData(args.Target).EntityName)),
                 colorOverride: Color.LimeGreen);
         }
     }

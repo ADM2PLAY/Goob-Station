@@ -2,6 +2,7 @@
 
 using Content.Goobstation.Shared.Zombies;
 using Content.Goobstation.Shared.Zombies.Components;
+using Content.Shared.Actions;
 using Content.Shared.Popups;
 using Content.Shared.Zombies;
 using Robust.Shared.Timing;
@@ -15,6 +16,7 @@ namespace Content.Goobstation.Server.Zombies;
 public sealed class ZombieStageSystem : SharedZombieStageSystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
+    [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
 
     public override void Initialize()
@@ -22,8 +24,8 @@ public sealed class ZombieStageSystem : SharedZombieStageSystem
         base.Initialize();
 
         SubscribeLocalEvent<ZombieComponent, EntityZombifiedEvent>(OnZombified);
-        SubscribeLocalEvent<ZombieComponent, ComponentShutdown>(OnZombieShutdown);
         SubscribeLocalEvent<VolatileZombieComponent, MapInitEvent>(OnVolatileMapInit);
+        SubscribeLocalEvent<ZombieCuredEvent>(OnZombieCured);
     }
 
     private void OnZombified(Entity<ZombieComponent> ent, ref EntityZombifiedEvent args)
@@ -39,16 +41,17 @@ public sealed class ZombieStageSystem : SharedZombieStageSystem
         RaiseLocalEvent(ent, ref ev);
     }
 
-    private void OnZombieShutdown(Entity<ZombieComponent> ent, ref ComponentShutdown args)
+    private void OnZombieCured(ref ZombieCuredEvent args)
     {
-        // Cured or otherwise un-zombified: drop any stage state with the zombie.
-        RemCompDeferred<VolatileZombieComponent>(ent);
-        RemCompDeferred<WalkerZombieComponent>(ent);
+        // Cured: drop any stage state with the zombie.
+        RemCompDeferred<VolatileZombieComponent>(args.Target);
+        RemCompDeferred<WalkerZombieComponent>(args.Target);
     }
 
     private void OnVolatileMapInit(Entity<VolatileZombieComponent> ent, ref MapInitEvent args)
     {
         ent.Comp.TransitionAt = _timing.CurTime + ent.Comp.Duration;
+        _actions.AddAction(ent, ref ent.Comp.LeapActionEntity, ent.Comp.LeapAction);
         Dirty(ent);
     }
 

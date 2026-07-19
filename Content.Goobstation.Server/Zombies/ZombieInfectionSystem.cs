@@ -34,11 +34,14 @@ public sealed class ZombieInfectionSystem : EntitySystem
     {
         base.Initialize();
 
-        SubscribeLocalEvent<PendingZombieComponent, MapInitEvent>(OnPendingMapInit);
+        // ComponentStartup instead of MapInit: upstream ZombieSystem already owns the
+        // PendingZombie MapInit subscription, and this engine allows only one
+        // directed subscriber per component/event pair.
+        SubscribeLocalEvent<PendingZombieComponent, ComponentStartup>(OnPendingStartup);
         SubscribeLocalEvent<PendingZombieComponent, ComponentShutdown>(OnPendingShutdown);
     }
 
-    private void OnPendingMapInit(Entity<PendingZombieComponent> ent, ref MapInitEvent args)
+    private void OnPendingStartup(Entity<PendingZombieComponent> ent, ref ComponentStartup args)
     {
         // Already a zombie, or dead (upstream converts the dead instantly).
         if (HasComp<ZombieComponent>(ent) || _mobState.IsDead(ent))
