@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Robust.Shared.Audio;
 using Robust.Shared.GameStates;
+using Robust.Shared.Prototypes;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
 namespace Content.Goobstation.Shared.Zombies.Components;
@@ -29,12 +31,42 @@ public sealed partial class VolatileZombieComponent : Component
     ///     Movement speed multiplier applied on top of the base zombie speed modifier.
     /// </summary>
     [DataField, AutoNetworkedField]
-    public float MovementSpeedMultiplier = 1f;
+    public float MovementSpeedMultiplier = 1.3f;
 
     /// <summary>
     ///     Damage modifier set applied while in this stage. Null keeps the set the
     ///     zombie already has.
     /// </summary>
     [DataField]
-    public string? DamageModifierSet;
+    public string? DamageModifierSet = "ZombieVolatile";
+
+    /// <summary>
+    ///     The pounce action granted while volatile.
+    /// </summary>
+    [DataField]
+    public EntProtoId LeapAction = "ActionZombieLeap";
+
+    [DataField, AutoNetworkedField]
+    public EntityUid? LeapActionEntity;
+
+    /// <summary>
+    ///     How far the pounce carries the zombie, in tiles.
+    /// </summary>
+    [DataField]
+    public float LeapDistance = 5f;
+
+    /// <summary>
+    ///     Throw speed of the pounce.
+    /// </summary>
+    [DataField]
+    public float LeapSpeed = 12f;
+
+    /// <summary>
+    ///     How long a victim the zombie lands on is knocked down.
+    /// </summary>
+    [DataField]
+    public TimeSpan LeapKnockdownDuration = TimeSpan.FromSeconds(2);
+
+    [DataField]
+    public SoundSpecifier? LeapSound = new SoundPathSpecifier("/Audio/Voice/Zombie/zombie-2.ogg");
 }

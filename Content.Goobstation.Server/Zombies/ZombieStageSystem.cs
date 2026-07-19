@@ -2,6 +2,7 @@
 
 using Content.Goobstation.Shared.Zombies;
 using Content.Goobstation.Shared.Zombies.Components;
+using Content.Shared.Popups;
 using Content.Shared.Zombies;
 using Robust.Shared.Timing;
 
@@ -14,6 +15,7 @@ namespace Content.Goobstation.Server.Zombies;
 public sealed class ZombieStageSystem : SharedZombieStageSystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
+    [Dependency] private readonly SharedPopupSystem _popup = default!;
 
     public override void Initialize()
     {
@@ -75,6 +77,8 @@ public sealed class ZombieStageSystem : SharedZombieStageSystem
 
         var wasVolatile = RemComp<VolatileZombieComponent>(uid);
         EnsureComp<WalkerZombieComponent>(uid);
+
+        _popup.PopupEntity(Loc.GetString("zombie-stage-walker-transition", ("zombie", uid)), uid, PopupType.LargeCaution);
 
         var ev = new ZombieStageChangedEvent(uid, wasVolatile ? ZombieStage.Volatile : null, ZombieStage.Walker);
         RaiseLocalEvent(uid, ref ev);

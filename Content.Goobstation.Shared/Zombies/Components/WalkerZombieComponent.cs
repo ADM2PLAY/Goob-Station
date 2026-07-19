@@ -15,12 +15,12 @@ public sealed partial class WalkerZombieComponent : Component
     ///     Movement speed multiplier applied on top of the base zombie speed modifier.
     /// </summary>
     [DataField, AutoNetworkedField]
-    public float MovementSpeedMultiplier = 1f;
+    public float MovementSpeedMultiplier = 0.65f;
 
     /// <summary>
     ///     Damage modifier set applied while in this stage. Null keeps the set the
     ///     zombie already has.
     /// </summary>
     [DataField]
-    public string? DamageModifierSet;
+    public string? DamageModifierSet = "ZombieWalker";
 }

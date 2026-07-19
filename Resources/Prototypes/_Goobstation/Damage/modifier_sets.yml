@@ -329,3 +329,29 @@
     Piercing: 5
     Heat: 3
     Structural: 3
+
+# Zed rework: volatile stage - fresh convert. Minor physical resist, weak to fire.
+- type: damageModifierSet
+  id: ZombieVolatile
+  coefficients:
+    Blunt: 0.85
+    Slash: 0.85
+    Piercing: 0.8
+    Heat: 1.25
+    Cold: 0.3
+    Poison: 0.0
+    Radiation: 0.0
+  ignoreArmorPierceFlags: All
+
+# Zed rework: walker stage - shambling tank. Guns barely matter, fire consumes them.
+- type: damageModifierSet
+  id: ZombieWalker
+  coefficients:
+    Blunt: 0.35
+    Slash: 0.45
+    Piercing: 0.25
+    Heat: 2.5
+    Cold: 0.2
+    Poison: 0.0
+    Radiation: 0.0
+  ignoreArmorPierceFlags: All
