@@ -3,11 +3,14 @@
 using Content.Goobstation.Shared.Zombies.Components;
 using Content.Shared.Hands;
 using Content.Shared.Hands.EntitySystems;
+using Content.Shared.Interaction;
 using Content.Shared.Interaction.Components;
 using Content.Shared.Inventory.VirtualItem;
+using Content.Shared.Item;
 using Content.Shared.Popups;
 using Content.Shared.Throwing;
 using Content.Shared.Zombies;
+using Robust.Shared.Containers;
 using Robust.Shared.Network;
 using Robust.Shared.Random;
 using Robust.Shared.Timing;
@@ -24,6 +27,7 @@ public sealed class ZombieGraspSystem : EntitySystem
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly INetManager _net = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly SharedContainerSystem _container = default!;
     [Dependency] private readonly SharedHandsSystem _hands = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
     [Dependency] private readonly ThrowingSystem _throwing = default!;
@@ -33,6 +37,22 @@ public sealed class ZombieGraspSystem : EntitySystem
         base.Initialize();
 
         SubscribeLocalEvent<ZombieComponent, DidEquipHandEvent>(OnDidEquipHand);
+        SubscribeLocalEvent<ZombieComponent, UserActivateInWorldEvent>(OnActivateInWorld);
+    }
+
+    private void OnActivateInWorld(EntityUid uid, ZombieComponent component, UserActivateInWorldEvent args)
+    {
+        // Zombies lack complex interaction, so their clicks never reach the
+        // normal pickup path - clicking an item lands here instead. Grab it
+        // with the paw; the slipping grasp below flings it right back out.
+        if (args.Handled || !HasComp<ItemComponent>(args.Target))
+            return;
+
+        if (_container.IsEntityInContainer(args.Target))
+            return;
+
+        args.Handled = true;
+        _hands.TryPickup(uid, args.Target, checkActionBlocker: false);
     }
 
     private void OnDidEquipHand(EntityUid uid, ZombieComponent component, DidEquipHandEvent args)

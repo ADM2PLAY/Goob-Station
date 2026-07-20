@@ -377,7 +377,7 @@ namespace Content.Server.Zombies
 
         // Goob - zed rework: a mask that blocks ingestion (muzzles, some sealed masks)
         // physically stops the bite. The zombie can still claw, but can't feed or infect.
-        private bool IsMuzzled(EntityUid uid)
+        public bool IsMuzzled(EntityUid uid)
         {
             return _inventory.TryGetSlotEntity(uid, "mask", out var mask)
                 && TryComp<IngestionBlockerComponent>(mask, out var blocker)
