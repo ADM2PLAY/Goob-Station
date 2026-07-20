@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Goobstation.Shared.Overlays;
 using Content.Goobstation.Shared.Zombies.Components;
 using Content.Shared.Actions;
 using Content.Shared.Damage;
@@ -61,11 +62,31 @@ public abstract class SharedZombieStageSystem : EntitySystem
             melee.Damage = ent.Comp.AttackDamage;
             Dirty(ent.Owner, melee);
         }
+
+        // Still sharp-eyed, but already hunting by body heat.
+        GrantHeatVision(ent.Owner, drawOverlay: false, color: Color.FromHex("#d06764"), lightRadius: 0f);
     }
 
     private void OnWalkerStartup(Entity<WalkerZombieComponent> ent, ref ComponentStartup args)
     {
         ApplyStageModifiers(ent, ent.Comp.DamageModifierSet);
+
+        // Rotted eyes: the world goes dark and murky, but warm bodies still
+        // stand out like a beacon.
+        GrantHeatVision(ent.Owner, drawOverlay: true, color: Color.FromHex("#3d0a0a"), lightRadius: 1f, overlayOpacity: 0.6f);
+    }
+
+    private void GrantHeatVision(EntityUid uid, bool drawOverlay, Color color, float lightRadius, float overlayOpacity = 0.5f)
+    {
+        var thermal = EnsureComp<ThermalVisionComponent>(uid);
+        thermal.IsEquipment = false;
+        thermal.ToggleAction = null;
+        thermal.IsActive = true;
+        thermal.DrawOverlay = drawOverlay;
+        thermal.OverlayOpacity = overlayOpacity;
+        thermal.Color = color;
+        thermal.LightRadius = lightRadius;
+        Dirty(uid, thermal);
     }
 
     private void OnVolatileShutdown(Entity<VolatileZombieComponent> ent, ref ComponentShutdown args)

@@ -253,6 +253,7 @@
     - type: Body
       prototype: IPC
       requiredLegs: 2
+      thermalVisibility: false # Goobstation - no body heat, invisible to zombie heat-vision
     - type: Ensnareable
       sprite: Objects/Misc/ensnare.rsi
     - type: Speech
