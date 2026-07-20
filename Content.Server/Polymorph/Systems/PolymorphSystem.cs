@@ -314,6 +314,24 @@ public sealed partial class PolymorphSystem : EntitySystem
             {
                 if (TryComp(child, out InventoryComponent? inventory2))
                 {
+                    // Goob - zed rework: the child prototype may spawn with its own
+                    // default gear (NPC/debug mobs). Delete that stock first so the
+                    // original's inventory can take its place instead of colliding
+                    // with full slots and spilling a duplicate set onto the floor.
+                    if (_inventory.TryGetContainerSlotEnumerator((child, inventory2), out var childSlots))
+                    {
+                        while (childSlots.MoveNext(out var childSlot))
+                        {
+                            if (childSlot.ContainedEntity is { } stock)
+                                Del(stock);
+                        }
+                    }
+
+                    foreach (var stockHeld in _hands.EnumerateHeld(child).ToArray())
+                    {
+                        Del(stockHeld);
+                    }
+
                     _inventory.TransferEntityInventories((uid, inventory1), (child, inventory2), false);
                     foreach (var hand in _hands.EnumerateHeld(uid))
                     {
