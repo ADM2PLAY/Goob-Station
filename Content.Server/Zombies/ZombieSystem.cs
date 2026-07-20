@@ -324,6 +324,7 @@ namespace Content.Server.Zombies
                 return;
 
             var cannotSpread = HasComp<NonSpreaderZombieComponent>(args.User);
+            var muzzled = IsMuzzled(entity); // Goob - zed rework: a muzzle physically blocks the bite
 
             foreach (var uid in args.HitEntities)
             {
@@ -342,6 +343,10 @@ namespace Content.Server.Zombies
 
                 if (_mobState.IsAlive(uid, mobState))
                 {
+                    // Goob - zed rework: muzzled zombies can only claw - no feeding, no infecting.
+                    if (muzzled)
+                        continue;
+
                     _damageable.TryChangeDamage(args.User, entity.Comp.HealingOnBite, true, false);
 
                     // If we cannot infect the living target, the zed will just heal itself.
@@ -360,7 +365,7 @@ namespace Content.Server.Zombies
                 }
                 else
                 {
-                    if (HasComp<ZombieImmuneComponent>(uid) || cannotSpread)
+                    if (HasComp<ZombieImmuneComponent>(uid) || cannotSpread || muzzled) // Goob - zed rework: muzzle
                         continue;
 
                     // If the target is dead and can be infected, infect.
@@ -368,6 +373,15 @@ namespace Content.Server.Zombies
                     args.Handled = true;
                 }
             }
+        }
+
+        // Goob - zed rework: a mask that blocks ingestion (muzzles, some sealed masks)
+        // physically stops the bite. The zombie can still claw, but can't feed or infect.
+        private bool IsMuzzled(EntityUid uid)
+        {
+            return _inventory.TryGetSlotEntity(uid, "mask", out var mask)
+                && TryComp<IngestionBlockerComponent>(mask, out var blocker)
+                && blocker.Enabled;
         }
 
         private void OverrideComp<T>(EntityUid target, EntityUid source) where T : IComponent // Goob, for below function

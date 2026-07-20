@@ -2,6 +2,9 @@
 
 using Content.Server.Administration.Managers;
 using Content.Server.Atmos.Components;
+using Content.Shared.Cuffs; // Goob - zed rework
+using Content.Shared.Cuffs.Components; // Goob - zed rework
+using Robust.Shared.Containers; // Goob - zed rework
 using Content.Server.Body.Components;
 using Content.Server.Chat;
 using Content.Server.Chat.Managers;
@@ -71,6 +74,8 @@ public sealed partial class ZombieSystem
     [Dependency] private readonly IBanManager _ban = default!;
     [Dependency] private readonly IChatManager _chatMan = default!;
     [Dependency] private readonly SharedCombatModeSystem _combat = default!;
+    [Dependency] private readonly SharedContainerSystem _container = default!; // Goob - zed rework
+    [Dependency] private readonly SharedCuffableSystem _cuffable = default!; // Goob - zed rework
     [Dependency] private readonly NpcFactionSystem _faction = default!;
     [Dependency] private readonly GhostSystem _ghost = default!;
     [Dependency] private readonly SharedHandsSystem _hands = default!;
@@ -158,6 +163,17 @@ public sealed partial class ZombieSystem
         }
 
         _meta.SetEntityName(zombie, _nameMod.GetBaseName(target));
+
+        // Goob - zed rework: restraints stay on through the turn. The polymorph
+        // doesn't carry the cuff container, so move the cuffs onto the new body.
+        if (TryComp<CuffableComponent>(target, out var origCuffable))
+        {
+            foreach (var cuff in new List<EntityUid>(origCuffable.Container.ContainedEntities))
+            {
+                _container.Remove(cuff, origCuffable.Container);
+                _cuffable.TryAddNewCuffs(zombie, zombie, cuff);
+            }
+        }
 
         // reassign target to polymorphed zombie !!
         target = zombie;
