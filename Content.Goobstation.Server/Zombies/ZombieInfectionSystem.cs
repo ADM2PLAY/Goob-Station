@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Goobstation.Maths.FixedPoint;
 using Content.Goobstation.Shared.Zombies.Components;
 using Content.Server.Chat.Systems;
 using Content.Server.Zombies;
 using Content.Shared._Shitmed.Damage;
 using Content.Shared._Shitmed.Targeting;
+using Content.Shared.Chemistry.EntitySystems;
 using Content.Shared.Damage;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
+using Content.Shared.Movement.Systems;
 using Content.Shared.Popups;
 using Content.Shared.Zombies;
+using Robust.Shared.Audio.Systems;
 using Robust.Shared.Random;
 using Robust.Shared.Timing;
 
@@ -27,7 +31,10 @@ public sealed class ZombieInfectionSystem : EntitySystem
     [Dependency] private readonly ChatSystem _chat = default!;
     [Dependency] private readonly DamageableSystem _damageable = default!;
     [Dependency] private readonly MobStateSystem _mobState = default!;
+    [Dependency] private readonly MovementModStatusSystem _movementModStatus = default!;
+    [Dependency] private readonly SharedAudioSystem _audio = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
+    [Dependency] private readonly SharedSolutionContainerSystem _solutionContainer = default!;
     [Dependency] private readonly ZombieSystem _zombie = default!;
 
     public override void Initialize()
@@ -59,6 +66,7 @@ public sealed class ZombieInfectionSystem : EntitySystem
     {
         // Cured before turning, or converted (which removes PendingZombie).
         RemCompDeferred<ZombieInfectionComponent>(ent);
+        RemCompDeferred<ZombieFeverComponent>(ent);
     }
 
     public override void Update(float frameTime)
@@ -69,20 +77,25 @@ public sealed class ZombieInfectionSystem : EntitySystem
         var query = EntityQueryEnumerator<ZombieInfectionComponent, PendingZombieComponent, DamageableComponent, MobStateComponent>();
         while (query.MoveNext(out var uid, out var infection, out _, out var damageable, out var mobState))
         {
+            // The dead don't progress; ZombifyOnDeath already handled or will handle them.
+            if (_mobState.IsDead(uid, mobState))
+                continue;
+
+            // Runs every frame, not gated by NextTick: the heartbeat gets faster
+            // than once a second as the infection worsens.
+            TickDread(uid, infection, curTime);
+
             if (infection.NextTick > curTime)
                 continue;
 
             infection.NextTick = curTime + TimeSpan.FromSeconds(1);
 
-            // The dead don't progress; ZombifyOnDeath already handled or will handle them.
-            if (_mobState.IsDead(uid, mobState))
-                continue;
-
             if (curTime >= infection.StageEndsAt && AdvanceStage(uid, infection))
                 continue;
 
-            TickDamage(uid, infection, damageable, mobState);
+            TickDamage(uid, infection, damageable, mobState, curTime);
             TickSymptoms(uid, infection);
+            TickTerminalStim(uid, infection);
         }
     }
 
@@ -104,6 +117,7 @@ public sealed class ZombieInfectionSystem : EntitySystem
             case InfectionStage.Fever:
                 infection.Stage = InfectionStage.Terminal;
                 infection.StageEndsAt = _timing.CurTime + infection.TerminalDuration;
+                infection.TerminalEnteredAt = _timing.CurTime;
                 Dirty(uid, infection);
                 _popup.PopupEntity(Loc.GetString("zombie-infection-stage-terminal"), uid, uid, PopupType.LargeCaution);
                 return false;
@@ -115,12 +129,14 @@ public sealed class ZombieInfectionSystem : EntitySystem
         }
     }
 
-    private void TickDamage(EntityUid uid, ZombieInfectionComponent infection, DamageableComponent damageable, MobStateComponent mobState)
+    private void TickDamage(EntityUid uid, ZombieInfectionComponent infection, DamageableComponent damageable, MobStateComponent mobState, TimeSpan curTime)
     {
         var damage = infection.Stage switch
         {
             InfectionStage.Fever => infection.FeverDamage,
-            InfectionStage.Terminal => infection.TerminalDamage,
+            // Grows the longer they linger in Terminal - Dylovene (or any Poison
+            // healing) can outpace this early on, but not forever.
+            InfectionStage.Terminal => infection.TerminalDamage * CalculateTerminalGrowth(infection, curTime),
             _ => null,
         };
 
@@ -138,6 +154,82 @@ public sealed class ZombieInfectionSystem : EntitySystem
             damageable,
             targetPart: TargetBodyPart.All,
             splitDamage: SplitDamageBehavior.SplitEnsureAll);
+    }
+
+    private static float CalculateTerminalGrowth(ZombieInfectionComponent infection, TimeSpan curTime)
+    {
+        var elapsedSeconds = Math.Max(0, (curTime - infection.TerminalEnteredAt).TotalSeconds);
+        return MathF.Pow(infection.TerminalGrowthRate, (float) elapsedSeconds);
+    }
+
+    /// <summary>
+    ///     While Terminal and actively metabolizing the stim reagent (Dylovene
+    ///     by default), grants a temporary "riding the adrenaline" speed boost -
+    ///     the small reward for engaging with the chug-to-survive loop.
+    /// </summary>
+    private void TickTerminalStim(EntityUid uid, ZombieInfectionComponent infection)
+    {
+        if (infection.Stage != InfectionStage.Terminal)
+            return;
+
+        if (!_solutionContainer.TryGetInjectableSolution(uid, out _, out var solution)
+            || solution.GetTotalPrototypeQuantity(infection.StimReagent) <= FixedPoint2.Zero)
+            return;
+
+        _movementModStatus.TryAddMovementSpeedModDuration(uid,
+            MovementModStatusSystem.ReagentSpeed,
+            TimeSpan.FromSeconds(3),
+            infection.StimWalkSpeedModifier,
+            infection.StimSprintSpeedModifier);
+    }
+
+    /// <summary>
+    ///     Updates the dread vignette intensity and, independently, plays the
+    ///     private heartbeat sting on its own (accelerating) schedule.
+    /// </summary>
+    private void TickDread(EntityUid uid, ZombieInfectionComponent infection, TimeSpan curTime)
+    {
+        if (infection.Stage == InfectionStage.Incubation)
+        {
+            RemCompDeferred<ZombieFeverComponent>(uid);
+            return;
+        }
+
+        var intensity = CalculateIntensity(infection, curTime);
+        var fever = EnsureComp<ZombieFeverComponent>(uid);
+        if (!MathHelper.CloseTo(fever.Intensity, intensity))
+        {
+            fever.Intensity = intensity;
+            Dirty(uid, fever);
+        }
+
+        if (curTime < infection.NextHeartbeat)
+            return;
+
+        var intervalSeconds = float.Lerp((float) infection.HeartbeatIntervalMax.TotalSeconds,
+            (float) infection.HeartbeatIntervalMin.TotalSeconds,
+            intensity);
+        infection.NextHeartbeat = curTime + TimeSpan.FromSeconds(intervalSeconds);
+        _audio.PlayGlobal(infection.HeartbeatSound, uid);
+    }
+
+    private static float CalculateIntensity(ZombieInfectionComponent infection, TimeSpan curTime)
+    {
+        switch (infection.Stage)
+        {
+            case InfectionStage.Fever:
+            {
+                var progress = 1f - Math.Clamp((float) ((infection.StageEndsAt - curTime) / infection.FeverDuration), 0f, 1f);
+                return float.Lerp(0f, 0.6f, progress);
+            }
+            case InfectionStage.Terminal:
+            {
+                var progress = 1f - Math.Clamp((float) ((infection.StageEndsAt - curTime) / infection.TerminalDuration), 0f, 1f);
+                return float.Lerp(0.6f, 1f, progress);
+            }
+            default:
+                return 0f;
+        }
     }
 
     private void TickSymptoms(EntityUid uid, ZombieInfectionComponent infection)

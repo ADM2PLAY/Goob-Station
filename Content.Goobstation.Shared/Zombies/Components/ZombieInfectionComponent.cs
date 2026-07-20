@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 using Content.Shared.Damage;
+using Robust.Shared.Audio;
 using Robust.Shared.GameStates;
 using Robust.Shared.Serialization.TypeSerializers.Implementations.Custom;
 
@@ -28,6 +29,20 @@ public sealed partial class ZombieInfectionComponent : Component
     public TimeSpan NextTick;
 
     /// <summary>
+    ///     When the next heartbeat sting plays. Ticks independently of
+    ///     NextTick since the beat gets faster than once a second.
+    /// </summary>
+    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer))]
+    public TimeSpan NextHeartbeat;
+
+    /// <summary>
+    ///     When the Terminal stage was entered. Anchors the exponential
+    ///     damage ramp - set on the Fever -> Terminal transition.
+    /// </summary>
+    [DataField(customTypeSerializer: typeof(TimeOffsetSerializer))]
+    public TimeSpan TerminalEnteredAt;
+
+    /// <summary>
     ///     Incubation length is rolled randomly between these bounds.
     /// </summary>
     [DataField]
@@ -41,6 +56,41 @@ public sealed partial class ZombieInfectionComponent : Component
 
     [DataField]
     public TimeSpan TerminalDuration = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    ///     Per-second compounding growth on Terminal poison damage. Chugging
+    ///     Dylovene (or any Poison-healing medicine) can keep pace early on,
+    ///     but nothing keeps up with it forever - it's a delay, not an escape.
+    /// </summary>
+    [DataField]
+    public float TerminalGrowthRate = 1.02f;
+
+    /// <summary>
+    ///     Reagent that grants the terminal-stage adrenaline rush (see
+    ///     ZombieInfectionSystem.TickTerminalStim) while present in the
+    ///     victim's system.
+    /// </summary>
+    [DataField]
+    public string StimReagent = "Dylovene";
+
+    [DataField]
+    public float StimWalkSpeedModifier = 1.25f;
+
+    [DataField]
+    public float StimSprintSpeedModifier = 1.25f;
+
+    /// <summary>
+    ///     Heartbeat sting, heard only by the victim. Plays throughout Fever
+    ///     and Terminal, speeding up as the infection worsens.
+    /// </summary>
+    [DataField]
+    public SoundSpecifier HeartbeatSound = new SoundPathSpecifier("/Audio/_Goobstation/Heretic/heartbeat.ogg");
+
+    [DataField]
+    public TimeSpan HeartbeatIntervalMax = TimeSpan.FromSeconds(1.3);
+
+    [DataField]
+    public TimeSpan HeartbeatIntervalMin = TimeSpan.FromSeconds(0.4);
 
     /// <summary>
     ///     Damage dealt each second during the fever stage. Incubation deals none.
