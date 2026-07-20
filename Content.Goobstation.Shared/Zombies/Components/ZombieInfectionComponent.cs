@@ -93,6 +93,23 @@ public sealed partial class ZombieInfectionComponent : Component
     public TimeSpan HeartbeatIntervalMin = TimeSpan.FromSeconds(0.4);
 
     /// <summary>
+    ///     Visible tremor (SharedJitteringSystem), seen by everyone, not just
+    ///     the victim - the "shaking like they're on meth" tell. Scales with
+    ///     the same intensity curve as the heartbeat/vignette.
+    /// </summary>
+    [DataField]
+    public float ShakeAmplitudeMin = 4f;
+
+    [DataField]
+    public float ShakeAmplitudeMax = 18f;
+
+    [DataField]
+    public float ShakeFrequencyMin = 2f;
+
+    [DataField]
+    public float ShakeFrequencyMax = 7f;
+
+    /// <summary>
     ///     Damage dealt each second during the fever stage. Incubation deals none.
     /// </summary>
     [DataField]

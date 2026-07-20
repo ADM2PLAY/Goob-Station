@@ -8,6 +8,7 @@ using Content.Shared._Shitmed.Damage;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Chemistry.EntitySystems;
 using Content.Shared.Damage;
+using Content.Shared.Jittering;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.Movement.Systems;
@@ -30,6 +31,7 @@ public sealed class ZombieInfectionSystem : EntitySystem
     [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly ChatSystem _chat = default!;
     [Dependency] private readonly DamageableSystem _damageable = default!;
+    [Dependency] private readonly SharedJitteringSystem _jitter = default!;
     [Dependency] private readonly MobStateSystem _mobState = default!;
     [Dependency] private readonly MovementModStatusSystem _movementModStatus = default!;
     [Dependency] private readonly SharedAudioSystem _audio = default!;
@@ -96,6 +98,7 @@ public sealed class ZombieInfectionSystem : EntitySystem
             TickDamage(uid, infection, damageable, mobState, curTime);
             TickSymptoms(uid, infection);
             TickTerminalStim(uid, infection);
+            TickShake(uid, infection, curTime);
         }
     }
 
@@ -211,6 +214,22 @@ public sealed class ZombieInfectionSystem : EntitySystem
             intensity);
         infection.NextHeartbeat = curTime + TimeSpan.FromSeconds(intervalSeconds);
         _audio.PlayGlobal(infection.HeartbeatSound, uid);
+    }
+
+    /// <summary>
+    ///     Visible tremor everyone can see - the "shaking like they're on
+    ///     meth" tell the vignette/heartbeat alone don't give bystanders.
+    /// </summary>
+    private void TickShake(EntityUid uid, ZombieInfectionComponent infection, TimeSpan curTime)
+    {
+        if (infection.Stage == InfectionStage.Incubation)
+            return;
+
+        var intensity = CalculateIntensity(infection, curTime);
+        var amplitude = float.Lerp(infection.ShakeAmplitudeMin, infection.ShakeAmplitudeMax, intensity);
+        var frequency = float.Lerp(infection.ShakeFrequencyMin, infection.ShakeFrequencyMax, intensity);
+
+        _jitter.DoJitter(uid, TimeSpan.FromSeconds(1.5), true, amplitude, frequency);
     }
 
     private static float CalculateIntensity(ZombieInfectionComponent infection, TimeSpan curTime)

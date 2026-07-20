@@ -9,14 +9,16 @@ using Robust.Shared.Prototypes;
 namespace Content.Goobstation.Client.Zombies;
 
 /// <summary>
-///     Rotted-eyes vision, drawn behind the thermal-vision entity-highlight
-///     pass (which sits at ZIndex -1) so a blind walker's environment reads
-///     as dim, greyscale, and hard to parse - like the game's Blind trait -
-///     rather than a total void, while whatever their heat-vision picks out
-///     still stands out clearly on top of it.
+///     Rotted-eyes vision: the same "Noir" shader the noir-tech detective
+///     glasses use (Sin City style - everything greyscale except red), drawn
+///     behind the thermal-vision entity-highlight pass (ZIndex -1) so
+///     heat-highlighted bodies still stand out clearly on top of it. Blood
+///     and anything else red in the world stays in color too.
 /// </summary>
 public sealed class ZombieBlindOverlay : Overlay
 {
+    private static readonly ProtoId<ShaderPrototype> NoirShader = "Noir";
+
     [Dependency] private readonly IPlayerManager _playerManager = default!;
     [Dependency] private readonly IEntityManager _entityManager = default!;
     [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
@@ -24,13 +26,13 @@ public sealed class ZombieBlindOverlay : Overlay
     public override bool RequestScreenTexture => true;
     public override OverlaySpace Space => OverlaySpace.WorldSpace;
 
-    private readonly ShaderInstance _greyscaleShader;
+    private readonly ShaderInstance _shader;
 
     public ZombieBlindOverlay()
     {
         IoCManager.InjectDependencies(this);
         ZIndex = -10;
-        _greyscaleShader = _prototypeManager.Index<ShaderPrototype>("GreyscaleFullscreen").InstanceUnique();
+        _shader = _prototypeManager.Index(NoirShader).InstanceUnique();
     }
 
     protected override bool BeforeDraw(in OverlayDrawArgs args)
@@ -47,13 +49,9 @@ public sealed class ZombieBlindOverlay : Overlay
         var worldHandle = args.WorldHandle;
         var viewport = args.WorldBounds;
 
-        _greyscaleShader.SetParameter("SCREEN_TEXTURE", ScreenTexture);
-        worldHandle.UseShader(_greyscaleShader);
+        _shader.SetParameter("SCREEN_TEXTURE", ScreenTexture);
+        worldHandle.UseShader(_shader);
         worldHandle.DrawRect(viewport, Color.White);
         worldHandle.UseShader(null);
-
-        // Dim heavily on top of the desaturation, tinted blood-red - vague
-        // shapes survive, detail doesn't.
-        worldHandle.DrawRect(viewport, Color.FromHex("#3a0000").WithAlpha(0.8f));
     }
 }
