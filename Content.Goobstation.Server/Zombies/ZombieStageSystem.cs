@@ -18,7 +18,7 @@ public sealed class ZombieStageSystem : SharedZombieStageSystem
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
-    [Dependency] private readonly ZombieMuzzleSystem _muzzle = default!;
+    [Dependency] private readonly ZombieGearSystem _gear = default!;
 
     public override void Initialize()
     {
@@ -33,7 +33,7 @@ public sealed class ZombieStageSystem : SharedZombieStageSystem
     {
         // Converted while already muzzled (the cuff-and-muzzle capture flow):
         // start with claw visuals instead of the bite.
-        _muzzle.RefreshBiteVisuals(ent);
+        _gear.RefreshBiteVisuals(ent);
 
         // Every fresh conversion starts in the volatile stage, unless something
         // (e.g. a prototype or an admin) already made this zombie a walker.

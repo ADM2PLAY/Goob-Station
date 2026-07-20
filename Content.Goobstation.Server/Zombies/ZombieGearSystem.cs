@@ -1,21 +1,30 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Goobstation.Shared.Zombies.Components;
 using Content.Server.Zombies;
 using Content.Shared.Inventory.Events;
+using Content.Shared.Popups;
 using Content.Shared.Weapons.Melee;
 using Content.Shared.Zombies;
 using Robust.Shared.Audio;
 using Robust.Shared.Prototypes;
+using Robust.Shared.Timing;
 
 namespace Content.Goobstation.Server.Zombies;
 
 /// <summary>
-///     Keeps a zombie's attack presentation honest: a muzzled zombie can't bite
-///     (see ZombieSystem.IsMuzzled and its OnMeleeHit checks), so its swings show
-///     a claw arc and slash sound instead of the bite chomp.
+///     Owns everything about a zombie's worn gear: keeps the attack
+///     presentation honest (muzzled = claw arc, not a bite - see
+///     ZombieSystem.IsMuzzled and its OnMeleeHit checks) and, since losing a
+///     mask is what unlocks biting, enforces a short cooldown after any
+///     unequip before that zombie can equip anything again - otherwise
+///     "strip the muzzle to bite" chains straight into "instantly re-gear
+///     off whatever's on the floor."
 /// </summary>
-public sealed class ZombieMuzzleSystem : EntitySystem
+public sealed class ZombieGearSystem : EntitySystem
 {
+    [Dependency] private readonly IGameTiming _timing = default!;
+    [Dependency] private readonly SharedPopupSystem _popup = default!;
     [Dependency] private readonly ZombieSystem _zombie = default!;
 
     private static readonly EntProtoId ClawAnimation = "WeaponArcClaw";
@@ -27,6 +36,7 @@ public sealed class ZombieMuzzleSystem : EntitySystem
 
         SubscribeLocalEvent<ZombieComponent, DidEquipEvent>(OnDidEquip);
         SubscribeLocalEvent<ZombieComponent, DidUnequipEvent>(OnDidUnequip);
+        SubscribeLocalEvent<ZombieComponent, IsEquippingAttemptEvent>(OnEquipAttempt);
     }
 
     private void OnDidEquip(Entity<ZombieComponent> ent, ref DidEquipEvent args)
@@ -39,6 +49,19 @@ public sealed class ZombieMuzzleSystem : EntitySystem
     {
         if (args.Slot == "mask")
             RefreshBiteVisuals(ent);
+
+        var gearLock = EnsureComp<ZombieGearLockComponent>(ent);
+        gearLock.LockedUntil = _timing.CurTime + gearLock.LockDuration;
+        Dirty(ent, gearLock);
+    }
+
+    private void OnEquipAttempt(Entity<ZombieComponent> ent, ref IsEquippingAttemptEvent args)
+    {
+        if (!TryComp<ZombieGearLockComponent>(ent, out var gearLock) || _timing.CurTime >= gearLock.LockedUntil)
+            return;
+
+        args.Cancel();
+        _popup.PopupClient(Loc.GetString("zombie-gear-fumble"), ent, ent);
     }
 
     /// <summary>

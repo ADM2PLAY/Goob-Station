@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Goobstation.Common.Interactions;
 using Content.Goobstation.Shared.Zombies.Components;
 using Content.Shared.Hands;
 using Content.Shared.Hands.EntitySystems;
@@ -38,6 +39,29 @@ public sealed class ZombieGraspSystem : EntitySystem
 
         SubscribeLocalEvent<ZombieComponent, DidEquipHandEvent>(OnDidEquipHand);
         SubscribeLocalEvent<ZombieComponent, UserActivateInWorldEvent>(OnActivateInWorld);
+        SubscribeLocalEvent<ZombieComponent, DropAttemptEvent>(OnDropAttempt);
+
+        // A zombie's grip only ever fails on its own schedule (below) - it
+        // can't be told to use or throw what it's holding, closing the
+        // "grab it, then immediately use/chuck it before the slip fires"
+        // window a fast enough click could otherwise land in.
+        SubscribeLocalEvent<ZombieSlippingGraspComponent, UseInHandAttemptEvent>(OnUseAttempt);
+        SubscribeLocalEvent<ZombieSlippingGraspComponent, ThrowItemAttemptEvent>(OnThrowAttempt);
+    }
+
+    private void OnDropAttempt(EntityUid uid, ZombieComponent component, DropAttemptEvent args)
+    {
+        args.Cancel();
+    }
+
+    private void OnUseAttempt(EntityUid uid, ZombieSlippingGraspComponent component, UseInHandAttemptEvent args)
+    {
+        args.Cancel();
+    }
+
+    private void OnThrowAttempt(EntityUid uid, ZombieSlippingGraspComponent component, ref ThrowItemAttemptEvent args)
+    {
+        args.Cancelled = true;
     }
 
     private void OnActivateInWorld(EntityUid uid, ZombieComponent component, UserActivateInWorldEvent args)

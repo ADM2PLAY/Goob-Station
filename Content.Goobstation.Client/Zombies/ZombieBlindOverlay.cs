@@ -52,7 +52,8 @@ public sealed class ZombieBlindOverlay : Overlay
         worldHandle.DrawRect(viewport, Color.White);
         worldHandle.UseShader(null);
 
-        // Dim heavily on top of the desaturation - vague shapes survive, detail doesn't.
-        worldHandle.DrawRect(viewport, Color.Black.WithAlpha(0.8f));
+        // Dim heavily on top of the desaturation, tinted blood-red - vague
+        // shapes survive, detail doesn't.
+        worldHandle.DrawRect(viewport, Color.FromHex("#3a0000").WithAlpha(0.8f));
     }
 }
