@@ -332,7 +332,11 @@ public sealed partial class PolymorphSystem : EntitySystem
                         Del(stockHeld);
                     }
 
-                    _inventory.TransferEntityInventories((uid, inventory1), (child, inventory2), false);
+                    // Goob - zed rework: forced polymorphs force the transfer too.
+                    // Unforced transfers run CanUnequip as the victim, which fails
+                    // when the victim is cuffed/restrained - zombified prisoners
+                    // used to convert naked because of it.
+                    _inventory.TransferEntityInventories((uid, inventory1), (child, inventory2), configuration.Forced);
                     foreach (var hand in _hands.EnumerateHeld(uid))
                     {
                         _hands.TryDrop(uid, hand, checkActionBlocker: false);

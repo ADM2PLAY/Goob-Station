@@ -3,6 +3,7 @@
 using Content.Shared.Item;
 using Content.Shared.Popups;
 using Content.Shared.Zombies;
+using Robust.Shared.Network;
 
 namespace Content.Goobstation.Shared.Zombies;
 
@@ -12,6 +13,7 @@ namespace Content.Goobstation.Shared.Zombies;
 /// </summary>
 public sealed class ZombieGraspSystem : EntitySystem
 {
+    [Dependency] private readonly INetManager _net = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
 
     public override void Initialize()
@@ -26,7 +28,11 @@ public sealed class ZombieGraspSystem : EntitySystem
         if (args.Cancelled)
             return;
 
-        _popup.PopupClient(Loc.GetString("zombie-cannot-hold", ("item", args.Item)), args.Item, uid);
         args.Cancel();
+
+        // The client raises this event speculatively just from hovering over
+        // items, which spammed the popup. Only the server sees real attempts.
+        if (_net.IsServer)
+            _popup.PopupEntity(Loc.GetString("zombie-cannot-hold", ("item", args.Item)), args.Item, uid);
     }
 }
