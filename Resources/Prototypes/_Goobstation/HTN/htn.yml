@@ -11,3 +11,56 @@
         targetKey: CallTarget
         rangeKey: MeleeRange
         removeKeyOnFinish: true
+
+# Goob - zed rework: zombies always attack with their innate bite/claw and
+# never seek out, pick up, or wield weapons. Same as SimpleHostileCompound
+# but skips PickupMeleeCompound/wield branches in BeforeMeleeAttackTargetCompound.
+- type: htnCompound
+  id: ZombieHostileCompound
+  branches:
+    - tasks:
+        - !type:HTNCompoundTask
+          task: ZombieMeleeCombatCompound
+    - tasks:
+        - !type:HTNCompoundTask
+          task: IdleCompound
+
+- type: htnCompound
+  id: ZombieMeleeCombatCompound
+  branches:
+    - tasks:
+        - !type:HTNPrimitiveTask
+          operator: !type:UtilityOperator
+            proto: NearbyMeleeTargets
+        - !type:HTNCompoundTask
+          task: ZombieBeforeMeleeAttackTargetCompound
+
+- type: htnCompound
+  id: ZombieBeforeMeleeAttackTargetCompound
+  branches:
+    - preconditions:
+        - !type:BuckledPrecondition
+          isBuckled: true
+      tasks:
+        - !type:HTNPrimitiveTask
+          operator: !type:UnbuckleOperator
+            shutdownState: TaskFinished
+
+    - preconditions:
+        - !type:PulledPrecondition
+          isPulled: true
+      tasks:
+        - !type:HTNPrimitiveTask
+          operator: !type:UnPullOperator
+            shutdownState: TaskFinished
+
+    - preconditions:
+        - !type:InContainerPrecondition
+          isInContainer: true
+      tasks:
+        - !type:HTNCompoundTask
+          task: EscapeCompound
+
+    - tasks:
+        - !type:HTNCompoundTask
+          task: MeleeAttackTargetCompound

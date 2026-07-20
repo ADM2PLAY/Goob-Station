@@ -338,7 +338,8 @@ public sealed partial class ZombieSystem
         _identity.QueueIdentityUpdate(target);
 
         var htn = EnsureComp<HTNComponent>(target);
-        htn.RootTask = new HTNCompoundTask() { Task = "SimpleHostileCompound" };
+        // Goob - zed rework: zombies never seek out or wield weapons, only bite/claw.
+        htn.RootTask = new HTNCompoundTask() { Task = "ZombieHostileCompound" };
         htn.Blackboard.SetValue(NPCBlackboard.Owner, target);
         _npc.SleepNPC(target, htn);
 

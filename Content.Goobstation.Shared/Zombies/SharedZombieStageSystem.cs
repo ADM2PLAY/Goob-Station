@@ -71,9 +71,10 @@ public abstract class SharedZombieStageSystem : EntitySystem
     {
         ApplyStageModifiers(ent, ent.Comp.DamageModifierSet);
 
-        // Rotted eyes: the world goes dark and murky, but warm bodies still
-        // stand out like a beacon.
-        GrantHeatVision(ent.Owner, drawOverlay: true, color: Color.FromHex("#3d0a0a"), lightRadius: 1f, overlayOpacity: 0.6f);
+        // Rotted eyes: genuinely blind to the environment, but warm bodies
+        // still stand out through their heat-vision.
+        GrantHeatVision(ent.Owner, drawOverlay: false, color: Color.FromHex("#d06764"), lightRadius: 0f);
+        EnsureComp<ZombieBlindComponent>(ent.Owner);
     }
 
     private void GrantHeatVision(EntityUid uid, bool drawOverlay, Color color, float lightRadius, float overlayOpacity = 0.5f)
